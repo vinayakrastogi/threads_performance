@@ -5,52 +5,41 @@
 #include <sys/time.h>
 #include <string.h>
 
-// Bar width to display the graph of time taken by
-// total number of threads
-#define MAX_BAR_WIDTH 50
+// Bar width to display the graph of time taken by total number of threads
+#define MAX_BAR_WIDTH 60
 
-// Function to perform matrix multiplication
+
 void *multiply(void *arg);
-
-// Function to assign matrices with a random value
 void set_matrix_values(int *arr, int rows, int columns);
-
-// Function to print MATRIX
 void print_matrix_values(int *arr, int rows, int columns);
-
-// Prints a horizontal line of (-)
 void print_line(int n);
-
-// Prints intro and outro text
 void display_message(int n);
-
-// Calculates the difference between time taken by consecutive threads,
-// and find points where performance is diminished
-void diminished_points(const unsigned long long times[], int size);
-
-// Prints bar graph for time taken by each number of threads
 void print_bar_graph(const unsigned long long values[], int size);
-
-// Allows program to wait for user input to proceed to next step
 void press_to_contnue();
 
-// Arguments to be passed in pointer function for atrix multiplication
+
+// Structure containing arguments to be passed in multiply function for matrix multiplication
 struct multiply_data {
+    // address of matirces
     int *matrix_1;
     int *matrix_2;
     int *matrix_3;
-    int row_s;
-    int row_e;
-    int columns;
-    int common;
+    int row_s; // Rows start
+    int row_e; // Row end
+    int columns; // no of columns in matrix 3
+    int common; // dimension shared by matrix 1 and 2 for multiplication
 };
 
 
 
 int main() {
+    // file to store time taken by different number of threads
     FILE *file;
     file = fopen("log.txt", "w");
+
+    // prints welcome message
     display_message(1);
+
     ///////////////////////////////////
     // MATRICES ROWS AND COLUMN VALUES;
     ///////////////////////////////////
@@ -58,6 +47,7 @@ int main() {
     // Stores rows and column values temporarily for initial matrices
     int temp_array_values[4];
 
+    // Getting rows and columns values for Multiplicant Matrices
     for (int i = 0; i < 2; i++) {
         printf("ENTER NUMBER OF ROWS IN MATRIX %d ::: ", (i + 1));
         scanf("%d", &temp_array_values[i * 2]);
@@ -65,10 +55,11 @@ int main() {
         scanf("%d", &temp_array_values[i * 2 + 1]);
     }
 
+
     print_line(1);
 
-    // Checks if matrix multiplication is possible or not via
-    // comparing rows and column values
+
+    // Checks if matrix multiplication is possible or not via comparing rows and column values
     if (temp_array_values[1] != temp_array_values[2]) {
         printf("MATRIX MULTIPLICATION NOT POSSIBLE, C2 != R1 ....exiting\n");
         exit(0); // exits if matrix multiplication not possible
@@ -87,6 +78,7 @@ int main() {
     int *matrix_2 = (int *)malloc(matrix_2_rows * matrix_2_columns * sizeof(int));
     int *matrix_3 = (int *)malloc(matrix_3_rows * matrix_3_columns * sizeof(int));
 
+    // exit if any matrix is not inititalised correctly
     if (matrix_1 == NULL || matrix_2 == NULL || matrix_3 == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
         exit(1);
@@ -103,14 +95,15 @@ int main() {
     print_line(1);
 
     printf("ENTER VALUES FOR MATRIX-1\n");
-    set_matrix_values(matrix_1, matrix_1_rows, matrix_1_columns);
+    set_matrix_values(matrix_1, matrix_1_rows, matrix_1_columns); // assigning values for multiplicant matrix - 1
     print_line(1);
     
     printf("ENTER VALUES FOR MATRIX-2\n");
-    set_matrix_values(matrix_2, matrix_2_rows, matrix_2_columns);
+    set_matrix_values(matrix_2, matrix_2_rows, matrix_2_columns); // assigning values for multiplicant matrix - 2
     print_line(1);
     
 
+    // Asking user whether to print created Matrices or not
     int choice = 0;
     printf("DO YOU WANT TO PRINT THE MATRICES GENERATED...\n");
     printf("1 -> YES\n2-> NO (recommended)\n");
@@ -135,6 +128,7 @@ int main() {
     printf("ENTER THE TOTAL NUMBER OF THREADS TO CREATE (<= %d) ::: ", matrix_3_rows);
     scanf("%d", &max_threads);
 
+    // to make sure that max_threads isn't greater than rows to avoid errors on later stages.
     if (max_threads > matrix_3_rows) {
         printf("Number of threads exceeds the number of rows. Adjusting to %d threads.\n", matrix_3_rows);
         max_threads = matrix_3_rows;
@@ -144,19 +138,20 @@ int main() {
     
     // stores time taken by n threads for completion of a process.
     unsigned long long times[max_threads];
+
     // stores time taken by each thread for completion of a process.
     unsigned long time;
 
+    // to calculate time taken by n number of threads for Matrix Multiplication
     for (int num_threads = 1; num_threads <= max_threads; num_threads++) {
 
-        // Allocate memory for threads and thread arguments
-
-        // creates a dynamic array of n number of threads for execution
+        // dynamic array of n number of threads for execution
         pthread_t *threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
 
-        // creates a dynamic array of n number of structures (values to be passed in function)
+        // dynamic array of n number of structures (values to be passed in function)
         struct multiply_data *thread_args = (struct multiply_data *)malloc(num_threads * sizeof(struct multiply_data));
 
+        // exits if dynamic array aren't created successfully
         if (threads == NULL || thread_args == NULL) {
             fprintf(stderr, "Memory allocation failed\n");
             exit(1);
@@ -165,10 +160,12 @@ int main() {
         // stores time of execution (beginning and ending time)
         struct timeval stop, start;
 
+        // rows to be handeled by each thread
         int rows_per_thread = matrix_3_rows / num_threads;
+        // remainder no of rows (case when rows % num_threads != 0) so that remaining rows doesn't miss out
         int remainder_rows = matrix_3_rows % num_threads;
 
-        // time before execution
+        // current time before execution
         gettimeofday(&start, NULL);
 
         // Assigns value to each structure and each thread for execution
@@ -183,27 +180,30 @@ int main() {
             pthread_create(&threads[i], NULL, multiply, (void *)&thread_args[i]);
         }
 
-        // starts the execution of each thread;
+        // Join all threads to ensure the main process waits for their completion
         for (int i = 0; i < num_threads; i++) {
             pthread_join(threads[i], NULL);
         }
 
-        // time after execution
+        // current time after execution
         gettimeofday(&stop, NULL);
 
-        // Calculation of time taken by each nthreads process
+        // Calculation of time taken by each nthreads process (stop_time - start_time)
         time = ( (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
+        // saving time value in array to be used later and write in file
         times[num_threads - 1] = time;
 
         print_line(1);
+        // Prints the time taken by current number of threads for multiplication process
         printf("NUMBER OF THREADS %d TOOK %lu us\t\t\t|\n", num_threads,time);
 
         // Free allocated memory
         free(threads);
         free(thread_args);
     }
-
+    
+    // Writing time values to the file seperated by newline
     for (int i = 0; i < max_threads ; i++ ) {
         fprintf(file, "%lld\n", times[i]);
     }
@@ -211,12 +211,10 @@ int main() {
     getchar();
     press_to_contnue();
 
+    // Printing time values as a graph for better understanding for user
     printf("\n\n\n");
     print_bar_graph(times, max_threads);
     press_to_contnue();
-    
-    printf("\n\n\n");
-    diminished_points(times, max_threads);
     
     // Free final matrix memory
     free(matrix_1);
@@ -227,6 +225,18 @@ int main() {
     return 0;
 }
 
+
+
+
+/*
+ *   Function : set_matrix_values
+ *   Purpose : assigns matrices indices with random values as per user requirements
+ *   Parameters :
+ *           *arr - address of a matrix
+ *           rows - No of rows in matrix
+ *           columns - No of columns in matrix
+ *   Returns: void
+*/
 void set_matrix_values(int *arr, int rows, int columns) {
     int max = 0, min = 0;
     printf("ENTER MIN VALUE FOR A MATRIX ELEMENT ::: ");
@@ -241,6 +251,15 @@ void set_matrix_values(int *arr, int rows, int columns) {
     }
 }
 
+/*
+ *   Function : set_matrix_values
+ *   Purpose : prints each element of matrix with their row and column values
+ *   Parameters :
+ *           *arr - address of a matrix
+ *           rows - No of rows in matrix
+ *           columns - No of columns in matrix
+ *   Returns: void
+*/
 void print_matrix_values(int *arr, int rows, int columns) {
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < columns; j++) {
@@ -250,6 +269,13 @@ void print_matrix_values(int *arr, int rows, int columns) {
     }
 }
 
+/*
+ *   Function : print_line
+ *   Purpose : Prints a horizontal line using hyphon (-) symbo
+ *   Parameters :
+ *           n - choice to print a newline or not (1 - newline, 2 - no newline)
+ *   Returns: void
+*/
 void print_line(int n) {
     if (n == 1)
         printf("________________________________________________________________\n");
@@ -257,6 +283,13 @@ void print_line(int n) {
         printf("________________________________________________________________");
 }
 
+/*
+ *   Function : multiply
+ *   Purpose : performs multiplication on matrices and store the result in another matrix.
+ *   Parameters :
+ *           *arg - contains address of matrices and values for rows and columns
+ *   Returns: void
+*/
 void *multiply(void *arg) {
     struct multiply_data *data = (struct multiply_data *)arg;
     for (int i = data->row_s; i < data->row_e; i++) {
@@ -269,6 +302,14 @@ void *multiply(void *arg) {
     }
     return NULL;
 }
+
+/*
+ *   Function : display_message
+ *   Purpose : Prints a specific message based on provided parameter n
+ *   Parameters :
+ *           n - choice of pre-defined message
+ *   Returns: void
+*/
 void display_message(int n) {
     if (n == 1) {
     // TO BE PRINTED AT START OF THE PROGRAM
@@ -290,23 +331,15 @@ void display_message(int n) {
     }
 }
 
-void diminished_points(const unsigned long long times[], int size) {
-    unsigned long long *differences = (unsigned long long *)malloc((size - 1) * sizeof(unsigned long long));
 
-    for (int i = 1; i < size; i++) {
-        differences[i - 1] = times[i - 1] - times[i];
-    }
-    printf("\nPoints where performance diminishes:\n");
-    for (int i = 1; i < size - 1; i++) {
-        if (differences[i - 1] > differences[i]) {
-            print_line(1);
-            printf("Performance diminishes between threads: %d and threads: %d)  |\n",
-                    i + 1, i + 2);
-        }
-    }
-
-    free(differences);
-}
+/*
+ *   Function : print_bar_graph
+ *   Purpose : Prints bar graph for time taken by each number of threads
+ *   Parameters :
+ *           values[] - list of time taken by threads
+ *           size - size of list
+ *   Returns: void
+*/
 void print_bar_graph(const unsigned long long values[], int size) {
     unsigned long long max_value = 0;
     for (int i = 0; i < size; i++) {
@@ -327,6 +360,13 @@ void print_bar_graph(const unsigned long long values[], int size) {
         printf(" %llu\n", values[i]);
     }
 }
+
+/*
+ *   Function : display_message
+ *   Purpose : Allows program to wait for user input to proceed to next step
+ *   Parameters : (None)
+ *   Returns: void
+*/
 void press_to_contnue() {
     printf("\nPRESS ENTER TO CONTINUE....\n");
     getchar();
